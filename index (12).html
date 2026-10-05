@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CanvasWars — The Art Battle</title>
+<meta name="description" content="CanvasWars is a live art battle series. Artists compete, the canvas decides. Browse every event in the archive.">
+<meta name="theme-color" content="#0a0a0b">
+<meta property="og:title" content="CanvasWars — The Art Battle">
+<meta property="og:description" content="Artists compete. The canvas decides. The full CanvasWars event archive.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0b'/%3E%3Cpath d='M0 0h64v6H0z' fill='%23c8201a'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-family='Impact,Arial Narrow,sans-serif' font-size='34' fill='%23ece8df'%3ECW%3C/text%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  /* =========================================================
+     CANVASWARS — HUB STYLES
+     Tweak the look from the variables below.
+     ========================================================= */
+  :root{
+    --bg:#0a0a0b;
+    --panel:#111113;
+    --panel-2:#17171a;
+    --line:#2a2a2e;
+    --ink:#ece8df;
+    --mute:#8d8a84;
+    --red:#c8201a;
+    --red-hot:#ee3a2d;
+    --display:'Anton','Impact','Haettenschweiler','Arial Narrow Bold',sans-serif;
+    --body:'Barlow','Helvetica Neue',Arial,sans-serif;
+    --cut:22px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:70px}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:16px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    position:relative;
+  }
+  a{color:inherit;text-decoration:none}
+  img{display:block;max-width:100%}
+  ::selection{background:var(--red);color:#fff}
+
+  /* ---------- Background depth: grain + vignette + registration marks ---------- */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.09;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(200,32,26,.10), transparent 55%),
+      radial-gradient(ellipse at 50% 120%, rgba(0,0,0,.8), transparent 60%),
+      linear-gradient(90deg, transparent 0, transparent calc(100% - 1px), rgba(255,255,255,.025) 100%) 0 0/120px 100%;
+  }
+  .page{position:relative;z-index:1}
+
+  .reg{position:absolute;width:34px;height:34px;opacity:.35;pointer-events:none}
+  .reg::before,.reg::after{content:"";position:absolute;background:var(--ink)}
+  .reg::before{left:50%;top:0;bottom:0;width:1px}
+  .reg::after{top:50%;left:0;right:0;height:1px}
+  .reg i{position:absolute;inset:8px;border:1px solid var(--ink);border-radius:50%}
+
+  /* ---------- Nav ---------- */
+  .nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(10,10,11,.82);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-in{
+    max-width:1240px;margin:0 auto;padding:0 20px;height:58px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .brand{font-family:var(--display);font-size:24px;letter-spacing:.04em;line-height:1}
+  .brand b{color:var(--red);font-weight:400}
+  .nav-links{display:flex;gap:26px}
+  .nav-links a{
+    font-weight:600;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);
+    padding:6px 0;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;
+  }
+  .nav-links a:hover{color:var(--ink);border-color:var(--red)}
+
+  /* ---------- Hero ---------- */
+  .hero{
+    position:relative;
+    padding:clamp(56px,10vw,120px) 20px clamp(48px,8vw,90px);
+    text-align:center;overflow:hidden;
+    border-bottom:1px solid var(--line);
+  }
+  .hero-art{position:absolute;inset:0;pointer-events:none;opacity:.5}
+  .hero-art svg{width:100%;height:100%}
+  .hero-in{position:relative;max-width:1240px;margin:0 auto}
+  .kicker{
+    display:inline-flex;align-items:center;gap:12px;
+    font-weight:700;font-size:12px;letter-spacing:.38em;text-transform:uppercase;color:var(--red-hot);
+    margin-bottom:22px;
+    animation:rise .7s .05s both;
+  }
+  .kicker::before,.kicker::after{content:"";width:34px;height:1px;background:var(--red)}
+  .logo-word{
+    font-family:var(--display);font-weight:400;line-height:.86;
+    font-size:clamp(76px,19vw,250px);
+    letter-spacing:.01em;text-transform:uppercase;
+    text-shadow:0 10px 0 rgba(0,0,0,.55), 0 30px 60px rgba(0,0,0,.7);
+    animation:slam .75s .1s cubic-bezier(.2,.9,.2,1) both;
+  }
+  .logo-word span{display:block}
+  .logo-word .wars{
+    color:transparent;-webkit-text-stroke:2px var(--red);
+    position:relative;
+  }
+  .logo-word .wars::after{
+    content:attr(data-t);position:absolute;left:0;right:0;top:0;
+    color:var(--red);clip-path:inset(0 0 52% 0);-webkit-text-stroke:0;
+  }
+  .subtitle{
+    margin-top:clamp(16px,2.4vw,28px);
+    font-family:var(--display);font-size:clamp(22px,4.2vw,52px);letter-spacing:.34em;
+    padding-left:.34em;text-transform:uppercase;
+    animation:rise .7s .3s both;
+  }
+  .tagline{
+    margin:22px auto 0;max-width:520px;color:#bdb9b0;font-size:clamp(17px,2.2vw,22px);font-weight:500;
+    animation:rise .7s .42s both;
+  }
+  .tagline em{font-style:normal;color:var(--ink)}
+  .hero-cta{margin-top:34px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;animation:rise .7s .55s both}
+
+  .btn{
+    --c:var(--red);
+    display:inline-flex;align-items:center;gap:12px;
+    font-family:var(--body);font-weight:700;font-size:14px;letter-spacing:.22em;text-transform:uppercase;
+    background:var(--c);color:#fff;padding:15px 26px;
+    clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));
+    transition:background .15s,transform .15s,color .15s;
+  }
+  .btn .arr{display:inline-block;transition:transform .18s}
+  .btn:hover{background:var(--red-hot)}
+  .btn:hover .arr{transform:translateX(6px)}
+  .btn.ghost{background:transparent;box-shadow:inset 0 0 0 1px var(--ink);color:var(--ink)}
+  .btn.ghost:hover{background:var(--ink);color:#0a0a0b}
+
+  .stripe{
+    border-bottom:1px solid var(--line);background:var(--panel);
+    overflow:hidden;
+  }
+  .stripe-in{
+    max-width:1240px;margin:0 auto;padding:14px 20px;
+    display:flex;flex-wrap:wrap;justify-content:center;gap:10px 34px;
+    font-weight:700;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--mute);
+  }
+  .stripe-in span{display:inline-flex;align-items:center;gap:34px}
+  .stripe-in span + span::before{content:"";width:6px;height:6px;background:var(--red);transform:rotate(45deg);margin-right:0}
+  .stripe-in strong{color:var(--ink);font-weight:700}
+
+  /* ---------- Section headings ---------- */
+  section{position:relative}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+  .sec{padding:clamp(54px,8vw,96px) 0 0}
+  .sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:30px;border-bottom:1px solid var(--line);padding-bottom:16px}
+  .sec-head h2{
+    font-family:var(--display);font-weight:400;text-transform:uppercase;
+    font-size:clamp(38px,7vw,84px);line-height:.95;letter-spacing:.015em;
+  }
+  .sec-head h2 b{color:var(--red);font-weight:400}
+  .sec-head p{color:var(--mute);font-size:13px;letter-spacing:.24em;text-transform:uppercase;font-weight:600;white-space:nowrap;padding-bottom:6px}
+
+  /* ---------- Event cards (fight-card / poster look) ---------- */
+  .slot{list-style:none;filter:drop-shadow(0 16px 22px rgba(0,0,0,.65));animation:rise .7s calc(.2s + var(--i,0) * .09s) both}
+  .card{
+    --cutp:var(--cut);
+    display:flex;flex-direction:column;height:100%;
+    background:var(--line);padding:1px;
+    clip-path:polygon(0 0,calc(100% - var(--cutp)) 0,100% var(--cutp),100% 100%,var(--cutp) 100%,0 calc(100% - var(--cutp)));
+    transition:transform .22s cubic-bezier(.2,.8,.2,1),background .2s;
+    position:relative;
+  }
+  .card-in{
+    flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.035),transparent 40%),
+      var(--panel);
+    clip-path:polygon(0 0,calc(100% - var(--cutp) + 1px) 0,100% calc(var(--cutp) - 1px),100% 100%,calc(var(--cutp) - 1px) 100%,0 calc(100% - var(--cutp) + 1px));
+  }
+  .card:hover,.card:focus-visible{transform:translateY(-8px);background:var(--red);outline:none}
+  .card:focus-visible{background:var(--ink)}
+  .ghost-num{
+    position:absolute;right:-6px;top:-18px;
+    font-family:var(--display);font-size:170px;line-height:1;color:rgba(255,255,255,.04);
+    pointer-events:none;user-select:none;
+  }
+  .bar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:14px 18px;border-bottom:1px solid var(--line);
+    font-weight:700;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--mute);
+    position:relative;z-index:1;
+  }
+  .tag{padding:4px 10px;border:1px solid var(--line);color:var(--mute);letter-spacing:.22em}
+  .tag.hot{background:var(--red);border-color:var(--red);color:#fff}
+
+  .logo{
+    position:relative;display:flex;align-items:center;justify-content:center;
+    aspect-ratio:16/10;padding:26px;
+    background:
+      radial-gradient(circle at 50% 45%,rgba(255,255,255,.09),transparent 62%),
+      repeating-linear-gradient(135deg,rgba(255,255,255,.018) 0 2px,transparent 2px 9px),
+      #0d0d0f;
+    border-bottom:1px solid var(--line);
+    overflow:hidden;
+  }
+  .logo img{
+    max-width:100%;max-height:100%;object-fit:contain;
+    filter:drop-shadow(0 10px 18px rgba(0,0,0,.75));
+    transition:transform .35s cubic-bezier(.2,.8,.2,1);
+  }
+  .card:hover .logo img{transform:scale(1.07)}
+  .logo-ph{
+    width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;
+    border:1px dashed #3a3a40;padding:12px;
+  }
+  .logo-ph small{font-size:10px;letter-spacing:.3em;font-weight:700;color:var(--red-hot);text-transform:uppercase}
+  .logo-ph strong{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,42px);line-height:1;letter-spacing:.03em;text-transform:uppercase}
+  .logo-ph code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--mute);word-break:break-all}
+
+  .body{padding:22px 22px 24px;display:flex;flex-direction:column;gap:14px;flex:1;position:relative;z-index:1}
+  .ev-kicker{font-weight:700;font-size:12px;letter-spacing:.34em;color:var(--red-hot);text-transform:uppercase}
+  .ev-name{
+    font-family:var(--display);font-weight:400;text-transform:uppercase;
+    font-size:clamp(34px,4.4vw,52px);line-height:.95;letter-spacing:.015em;
+  }
+  .ev-desc{color:#b4b0a7;font-size:16px;max-width:52ch}
+  .meta{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+  .meta span{display:flex;gap:10px;align-items:baseline}
+  .meta span::before{content:"";flex:none;width:14px;height:2px;background:var(--red);transform:translateY(-3px)}
+  .stats{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:1px;
+    background:var(--line);border:1px solid var(--line);margin-top:2px;
+  }
+  .stats div{background:var(--panel-2);padding:10px 12px}
+  .stats dt{font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--mute);font-weight:700}
+  .stats dd{font-family:var(--display);font-size:22px;letter-spacing:.03em;line-height:1.15;margin-top:2px}
+  .cta{margin-top:auto;padding-top:6px}
+  .cta .btn{width:100%;justify-content:space-between}
+
+  /* featured (current battle) */
+  .featured .card{--cutp:34px}
+  .featured .card-in{flex-direction:row}
+  .featured .logo{flex:1.05;aspect-ratio:auto;min-height:420px;border-bottom:0;border-right:1px solid var(--line);padding:44px}
+  .featured .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .featured .ghost-num{font-size:300px;top:-40px;right:6px}
+  .featured .body{padding:30px 34px 34px;gap:18px}
+  .featured .ev-name{font-size:clamp(46px,6.2vw,96px)}
+  .featured .ev-desc{font-size:18px}
+  .featured .cta .btn{font-size:16px;padding:19px 30px;width:auto;justify-content:flex-start}
+  .featured .card:hover .btn{background:var(--red-hot)}
+
+  /* archive grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:34px 28px;list-style:none}
+
+  /* next-battle placeholder tile */
+  .next{
+    height:100%;min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;
+    padding:34px 24px;
+    border:1px dashed #3a3a40;
+    background:repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0 2px,transparent 2px 12px);
+  }
+  .next small{font-size:11px;font-weight:700;letter-spacing:.34em;text-transform:uppercase;color:var(--red-hot)}
+  .next h3{font-family:var(--display);font-weight:400;font-size:clamp(34px,4vw,48px);line-height:1;text-transform:uppercase;letter-spacing:.02em}
+  .next p{color:var(--mute);max-width:28ch}
+  .next .q{font-family:var(--display);font-size:110px;line-height:1;color:rgba(255,255,255,.07)}
+
+  /* ---------- About ---------- */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--line);background:var(--panel)}
+  .step{padding:30px 28px 34px;border-right:1px solid var(--line);position:relative}
+  .step:last-child{border-right:0}
+  .step .n{font-family:var(--display);font-size:64px;line-height:1;color:var(--red)}
+  .step h3{font-family:var(--display);font-weight:400;font-size:30px;letter-spacing:.04em;text-transform:uppercase;margin:6px 0 8px}
+  .step p{color:#b4b0a7;max-width:34ch}
+
+  /* ---------- Footer ---------- */
+  footer{margin-top:clamp(70px,9vw,120px);border-top:1px solid var(--line);background:#070708;position:relative;z-index:1}
+  .foot{max-width:1240px;margin:0 auto;padding:44px 20px 48px;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap}
+  .foot .brand{font-size:44px}
+  .foot p{color:var(--mute);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+  .foot p a{color:var(--ink);border-bottom:1px solid var(--red)}
+
+  /* ---------- Motion ---------- */
+  @keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+  @keyframes slam{from{opacity:0;transform:scale(1.08) translateY(-10px);letter-spacing:.06em}to{opacity:1;transform:none;letter-spacing:.01em}}
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:980px){
+    .featured .card-in{flex-direction:column}
+    .featured .logo{min-height:0;aspect-ratio:16/10;border-right:0;border-bottom:1px solid var(--line);padding:30px}
+    .featured .ghost-num{font-size:200px}
+    .steps{grid-template-columns:1fr}
+    .step{border-right:0;border-bottom:1px solid var(--line)}
+    .step:last-child{border-bottom:0}
+  }
+  @media (max-width:640px){
+    :root{--cut:16px}
+    .nav-links{gap:16px}
+    .nav-links a{font-size:11px;letter-spacing:.14em}
+    .brand{font-size:21px}
+    .kicker{font-size:10px;letter-spacing:.26em}
+    .kicker::before,.kicker::after{width:16px}
+    .subtitle{letter-spacing:.2em;padding-left:.2em}
+    .hero-cta .btn{width:100%;justify-content:space-between}
+    .stripe-in{gap:8px 18px;font-size:10px;letter-spacing:.2em}
+    .stripe-in span{gap:18px}
+    .sec-head{flex-direction:column;align-items:flex-start;gap:8px}
+    .sec-head p{white-space:normal}
+    .grid{grid-template-columns:1fr;gap:30px}
+    .featured .body{padding:22px 20px 24px}
+    .featured .cta .btn{width:100%;justify-content:space-between}
+    .next{min-height:300px}
+    .foot{flex-direction:column;align-items:flex-start}
+  }
+  @media (max-width:420px){
+    .reg{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ================= NAV ================= -->
+  <header class="nav">
+    <div class="nav-in">
+      <a class="brand" href="#top" aria-label="CanvasWars home">CANVAS<b>WARS</b></a>
+      <nav class="nav-links" aria-label="Main">
+        <a href="#events">Events</a>
+        <a href="#about">About</a>
+        <a href="#archive">Archive</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ================= HERO ================= -->
+  <section class="hero" id="top">
+    <div class="hero-art" aria-hidden="true">
+      <svg viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" fill="none" stroke="#ece8df" stroke-width="1" opacity=".16">
+        <circle cx="150" cy="140" r="44"/><path d="M150 80v120M90 140h120"/>
+        <circle cx="1050" cy="560" r="44"/><path d="M1050 500v120M990 560h120"/>
+        <path d="M0 520 L420 120 M60 700 L560 220 M760 0 L1200 420" stroke="#c8201a" stroke-width="2" opacity=".55"/>
+        <path d="M880 90c40-26 90-18 120 10s46 62 30 96" stroke="#ece8df" stroke-width="3" stroke-linecap="round" opacity=".5"/>
+        <path d="M120 560c30 30 78 40 120 18" stroke="#ece8df" stroke-width="3" stroke-linecap="round" opacity=".5"/>
+      </svg>
+    </div>
+    <i class="reg" style="left:18px;top:78px" aria-hidden="true"><i></i></i>
+    <i class="reg" style="right:18px;top:78px" aria-hidden="true"><i></i></i>
+
+    <div class="hero-in">
+      <div class="kicker">Live Art Competition</div>
+      <h1 class="logo-word" aria-label="CanvasWars">
+        <span aria-hidden="true">Canvas</span>
+        <span class="wars" aria-hidden="true" data-t="Wars">Wars</span>
+      </h1>
+      <div class="subtitle">The Art Battle</div>
+      <p class="tagline"><em>Artists compete.</em> The canvas decides.<br>One canvas. One clock. A live crowd.</p>
+      <div class="hero-cta">
+        <a class="btn" href="#events">Enter the Arena <span class="arr">→</span></a>
+        <a class="btn ghost" href="#about">How It Works</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="stripe">
+    <div class="stripe-in">
+      <span><strong id="count">3</strong> Battles Fought</span>
+      <span>Live Painting</span>
+      <span>Audience Vote</span>
+      <span>Guest Judges</span>
+      <span>Medford, Oregon</span>
+    </div>
+  </div>
+
+  <!-- ================= EVENTS ================= -->
+  <section class="sec" id="events">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Current <b>Battles</b></h2>
+        <p>Latest event</p>
+      </div>
+      <ul id="featured" class="featured" style="list-style:none"></ul>
+    </div>
+  </section>
+
+  <section class="sec" id="archive">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>The <b>Archive</b></h2>
+        <p>Every battle on record</p>
+      </div>
+      <ul id="grid" class="grid"></ul>
+    </div>
+  </section>
+
+  <!-- ================= ABOUT ================= -->
+  <section class="sec" id="about">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>What Is <b>CanvasWars?</b></h2>
+        <p>Three rules</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="n">01</div>
+          <h3>Step Up</h3>
+          <p>Artists enter. Everyone gets the same blank start and the same clock. No excuses.</p>
+        </div>
+        <div class="step">
+          <div class="n">02</div>
+          <h3>Paint Live</h3>
+          <p>Start to finish in front of a crowd. No redo, no hiding the process.</p>
+        </div>
+        <div class="step">
+          <div class="n">03</div>
+          <h3>The Canvas Decides</h3>
+          <p>The audience votes live, judges score the work, and a winner is named on the spot.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer>
+    <div class="foot">
+      <div>
+        <div class="brand">CANVAS<b>WARS</b></div>
+      </div>
+      <p>© <span id="year">2026</span> CanvasWars · Created by <a href="https://jawsatak47.github.io/" target="_blank" rel="noopener">JawsAtak</a> · Medford, Oregon</p>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* =====================================================================
+   EVENT DATA — THIS IS THE ONLY PLACE YOU EDIT TO ADD / CHANGE EVENTS
+   ---------------------------------------------------------------------
+   HOW TO ADD A NEW EVENT:
+     1. Copy any block below and paste it at the TOP of the list
+        (newest event first).
+     2. Fill in title, description, date, location, url, logo.
+     3. Done. The card, numbering, archive and counter update themselves.
+
+   FIELDS
+     title        "CanvasWars: Name" — text after the colon becomes the big title.
+     description  1–2 short sentences.
+     date         Shown on the card. Leave "" to hide.
+     location     Shown on the card. Leave "" to hide.
+     url          The event page the VIEW EVENT button opens.
+     logo         Path to the event logo. Drop the file in assets/logos/
+                  and make sure the filename here matches (png, jpg, svg, webp).
+                  If the file is missing, a labeled placeholder shows instead.
+     status       Small badge, e.g. "LATEST", "COMPLETED". Optional.
+     stats        Fight-card stat boxes (up to 4 look best). Optional.
+     featured     true on ONE event to make it the big top card.
+                  If none is marked, the first event in the list is featured.
+   ===================================================================== */
+const events = [
+  {
+    title: "CanvasWars: Window Wars",
+    description: "Four competing artists, one host artist and $200 in shop credit on the line. Live at ScrappyCrafts.",
+    date: "Upcoming",
+    location: "Scrappy Craft",
+    url: "https://jawsatak47.github.io/CWSWindowWarsScrappyCraft/",
+    logo: "assets/logos/window-wars.png",
+    status: "Latest",
+    featured: true,
+    stats: [
+      { label: "Artists", value: "4" },
+      { label: "Host", value: "1" },
+      { label: "Prize pool", value: "$200 credit" }
+    ]
+  },
+  {
+    title: "CanvasWars: MonsTober",
+    description: "Five artists, black canvases, black and white only. Three guest judges and a live audience vote.",
+    date: "Oct 3, 2026",
+    location: "Phoenix Phoodery · Medford, OR",
+    url: "https://jawsatak47.github.io/CWSmonstober/",
+    logo: "assets/logos/monstober.png",
+    status: "Completed",
+    stats: [
+      { label: "Artists", value: "5" },
+      { label: "Canvas", value: '30"×20"' },
+      { label: "Palette", value: "B & W" },
+      { label: "1st prize", value: "$100" }
+    ]
+  },
+  {
+    title: "CanvasWars: Original Event",
+    description: "Where it started. Local artists, a live audience vote, and a winner decided on the spot.",
+    date: "Year One",
+    location: "Bear Creek Park · Medford, OR",
+    url: "https://jawsatak47.github.io/CWS/",
+    logo: "assets/logos/original.png",
+    status: "Archived",
+    stats: [
+      { label: "Champion", value: "Miles" },
+      { label: "Winning score", value: "8 pts" }
+    ]
+  }
+  /* ← ADD THE NEXT EVENT AT THE TOP OF THIS LIST (copy a block above, add a comma) */
+];
+
+/* The dashed "next battle" tile that sits at the end of the archive.
+   Set show:false to remove it, or edit the text. */
+const nextBattle = {
+  show: true,
+  title: "Next Battle",
+  note: "Date, location and artists get announced soon."
+};
+
+/* =====================================================================
+   RENDERING — you shouldn't need to touch anything below this line
+   ===================================================================== */
+(function () {
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function splitTitle(title) {
+    const m = title.match(/^(.*?)\s*[:—–]\s*(.+)$/);
+    return m ? { kicker: m[1], name: m[2] } : { kicker: "CanvasWars", name: title };
+  }
+
+  function logoBlock(ev, name) {
+    const wrap = el("div", "logo");
+    const placeholder = function () {
+      const ph = el("div", "logo-ph");
+      ph.appendChild(el("small", null, "Logo placeholder"));
+      ph.appendChild(el("strong", null, name));
+      ph.appendChild(el("code", null, ev.logo ? ev.logo : "set logo: in the events list"));
+      return ph;
+    };
+    if (ev.logo) {
+      const img = new Image();
+      img.alt = ev.title + " logo";
+      img.decoding = "async";
+      img.onerror = function () { wrap.replaceChildren(placeholder()); };
+      img.src = ev.logo;
+      wrap.appendChild(img);
+    } else {
+      wrap.appendChild(placeholder());
+    }
+    return wrap;
+  }
+
+  function buildCard(ev, number, index, isFeatured) {
+    const parts = splitTitle(ev.title);
+
+    const slot = el("li", "slot");
+    slot.style.setProperty("--i", index);
+
+    const a = el("a", "card");
+    a.href = ev.url;
+    a.setAttribute("aria-label", "View event: " + ev.title);
+
+    const inner = el("div", "card-in");
+    inner.appendChild(el("div", "ghost-num", String(number).padStart(2, "0")));
+
+    const logo = logoBlock(ev, parts.name);
+
+    const main = el("div", "main");
+    const bar = el("div", "bar");
+    bar.appendChild(el("span", null, "Battle No. " + String(number).padStart(2, "0")));
+    if (ev.status) {
+      const hot = /latest|live|current|next/i.test(ev.status);
+      bar.appendChild(el("span", "tag" + (hot ? " hot" : ""), ev.status));
+    }
+
+    const body = el("div", "body");
+    body.appendChild(el("div", "ev-kicker", parts.kicker));
+    body.appendChild(el("h3", "ev-name", parts.name));
+    if (ev.description) body.appendChild(el("p", "ev-desc", ev.description));
+
+    if (ev.date || ev.location) {
+      const meta = el("div", "meta");
+      if (ev.date) meta.appendChild(el("span", null, ev.date));
+      if (ev.location) meta.appendChild(el("span", null, ev.location));
+      body.appendChild(meta);
+    }
+
+    if (ev.stats && ev.stats.length) {
+      const dl = el("dl", "stats");
+      ev.stats.forEach(function (s) {
+        const d = el("div");
+        d.appendChild(el("dt", null, s.label));
+        d.appendChild(el("dd", null, s.value));
+        dl.appendChild(d);
+      });
+      body.appendChild(dl);
+    }
+
+    const cta = el("div", "cta");
+    const btn = el("span", "btn");
+    btn.appendChild(document.createTextNode("View Event "));
+    btn.appendChild(el("span", "arr", "→"));
+    cta.appendChild(btn);
+    body.appendChild(cta);
+
+    if (isFeatured) {
+      /* featured layout: logo on the left, details on the right */
+      main.appendChild(bar);
+      main.appendChild(body);
+      inner.appendChild(logo);
+      inner.appendChild(main);
+    } else {
+      /* grid layout: bar, logo, details stacked */
+      main.style.cssText = "display:flex;flex-direction:column;flex:1";
+      main.appendChild(bar);
+      main.appendChild(logo);
+      main.appendChild(body);
+      inner.appendChild(main);
+    }
+
+    a.appendChild(inner);
+    slot.appendChild(a);
+    return slot;
+  }
+
+  const total = events.length;
+  const featuredIdx = Math.max(0, events.findIndex(function (e) { return e.featured; }));
+
+  const featuredEl = document.getElementById("featured");
+  const gridEl = document.getElementById("grid");
+  const archiveSection = document.getElementById("archive");
+
+  /* newest event = first in the list, so it gets the highest battle number */
+  events.forEach(function (ev, i) {
+    const number = total - i;
+    if (i === featuredIdx) {
+      featuredEl.appendChild(buildCard(ev, number, 0, true));
+    }
+  });
+
+  let slotIndex = 1;
+  events.forEach(function (ev, i) {
+    if (i === featuredIdx) return;
+    gridEl.appendChild(buildCard(ev, total - i, slotIndex++, false));
+  });
+
+  if (nextBattle && nextBattle.show) {
+    const slot = el("li", "slot");
+    slot.style.setProperty("--i", slotIndex);
+    const box = el("div", "next");
+    box.appendChild(el("div", "q", "?"));
+    box.appendChild(el("small", null, "Battle No. " + String(total + 1).padStart(2, "0")));
+    box.appendChild(el("h3", null, nextBattle.title));
+    box.appendChild(el("p", null, nextBattle.note));
+    slot.appendChild(box);
+    gridEl.appendChild(slot);
+  }
+
+  if (!gridEl.children.length) archiveSection.style.display = "none";
+
+  document.getElementById("count").textContent = total;
+  document.getElementById("year").textContent = new Date().getFullYear();
+})();
+</script>
+</body>
+</html>
